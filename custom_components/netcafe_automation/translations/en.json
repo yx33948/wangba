@@ -1,0 +1,67 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Setup Internet Cafe Automation",
+        "description": "Please paste CSV content with room configurations.\n\nCSV format example:\n```\nroom_name,entity_id,ip_address\nDouble Room 38-39,device_tracker.hostname38,192.168.1.38\nDouble Room 38-39,climate.ac_38,\nDouble Room 38-39,light.room38_main,\n```\n\nCopy from Excel: Select all → Ctrl+C → Paste here\nCopy from file: Open with Notepad → Select all → Copy → Paste here",
+        "data": {
+          "csv_content": "CSV Content"
+        }
+      },
+      "confirm": {
+        "title": "Confirm Configuration",
+        "description": "Detected {room_count} rooms.\n\nEnable automations?",
+        "data": {
+          "enable_automation": "Enable Automation"
+        }
+      }
+    },
+    "error": {
+      "no_csv_file": "No CSV content provided, please paste data",
+      "invalid_csv": "Invalid CSV format, please check header row and data",
+      "cannot_read_file": "Cannot parse CSV content, please check format"
+    },
+    "abort": {
+      "already_configured": "Configuration already exists"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Internet Cafe Automation Options",
+        "description": "Manage automation configuration",
+        "data": {
+          "action": "Select Action"
+        }
+      },
+      "update_csv": {
+        "title": "Update CSV Configuration",
+        "description": "Paste new CSV content to update configuration. Format: room_name,entity_id,ip_address",
+        "data": {
+          "csv_content": "CSV Content"
+        }
+      }
+    },
+    "error": {
+      "no_csv_file": "No CSV content provided",
+      "invalid_csv": "Invalid CSV format",
+      "cannot_read_file": "Cannot parse CSV content"
+    }
+  },
+  "services": {
+    "reload_from_csv": {
+      "name": "Reload CSV Configuration",
+      "description": "Reload all room configurations from CSV file"
+    },
+    "export_csv": {
+      "name": "Export CSV Configuration",
+      "description": "Export current configuration as standard CSV file to www directory, accessible at /local/netcafe_rooms.csv",
+      "fields": {
+        "filename": {
+          "name": "Filename",
+          "description": "Name of the exported CSV file (without extension)"
+        }
+      }
+    }
+  }
+}

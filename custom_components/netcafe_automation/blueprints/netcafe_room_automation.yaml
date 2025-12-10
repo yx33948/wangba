@@ -1,0 +1,588 @@
+blueprint:
+  name: 【网吧】包间智能自动化
+  description: >
+    # 【网吧】包间智能自动化
+
+    **版本: 1.0**
+
+
+    实现网吧包间的全自动智能控制：电脑上线自动开启设备，电脑离线自动关闭设备 ✨
+
+
+    **作者：buynow | V：ecorehome**
+
+
+    <details>
+    <summary><b>自动化流程：</b> 👈</summary>
+
+
+      - **有人进入：**
+        - 检测到任一电脑上线
+        - 自动开启灯光
+        - 根据季节和时间段控制空调温度
+        - 打开窗帘（可选）
+
+      - **无人离开：**
+        - 检测到所有电脑离线
+        - 延迟指定时间
+        - 自动关闭所有设备
+
+      - **勿扰模式：**
+        - 手动开启勿扰后，暂停自动化
+        - 保持设备当前状态
+    </details>
+
+
+    [Home Assistant 中文网](https://www.hasscn.top/)
+
+
+    必填 = *
+  
+  domain: automation
+  homeassistant:
+    min_version: 2024.6.0
+  
+  input:
+    # ========== 基础设置 ==========
+    basic_settings:
+      name: "基础设置 *"
+      icon: mdi:cog-outline
+      collapsed: false
+      input:
+        room_name:
+          name: 包间名称 *
+          description: >
+            包间的显示名称，如"双包 38-39"
+          selector:
+            text:
+        
+        computer_entities:
+          name: 电脑设备追踪器 *
+          description: >
+            选择该包间的所有电脑对应的 device_tracker 实体。
+            
+            
+            可以使用 ping、nmap_tracker 或 iphonedetect 等集成创建设备追踪器。
+          selector:
+            entity:
+              domain: 
+                - device_tracker
+                - binary_sensor
+              multiple: true
+        
+        enable_dnd:
+          name: 启用勿扰模式 (可选)
+          description: >
+            是否创建一个勿扰开关。开启勿扰后，自动化将被暂停。
+          default: true
+          selector:
+            boolean:
+    
+    # ========== 灯光控制 ==========
+    light_settings:
+      name: "灯光控制"
+      icon: mdi:lightbulb-outline
+      collapsed: true
+      input:
+        enable_lights:
+          name: 启用灯光控制
+          default: true
+          selector:
+            boolean:
+        
+        light_entities:
+          name: 灯光实体
+          description: >
+            选择该包间的灯光设备
+          default: []
+          selector:
+            entity:
+              domain: light
+              multiple: true
+        
+        light_brightness:
+          name: 亮度百分比 (可选)
+          description: >
+            开启灯光时的亮度，1-100
+          default: 100
+          selector:
+            number:
+              min: 1
+              max: 100
+              unit_of_measurement: "%"
+    
+    # ========== 空调控制 ==========
+    climate_settings:
+      name: "空调控制"
+      icon: mdi:air-conditioner
+      collapsed: true
+      input:
+        enable_climate:
+          name: 启用空调控制
+          default: true
+          selector:
+            boolean:
+        
+        climate_entities:
+          name: 空调实体
+          description: >
+            选择该包间的空调设备
+          default: []
+          selector:
+            entity:
+              domain: climate
+              multiple: true
+        
+        season_sensor:
+          name: 季节传感器（默认保底）
+          description: >
+            系统自动创建的季节传感器，作为默认值
+            
+            
+            传感器值："夏季"、"冬季" 或 "春秋季"
+            
+            
+            当 weather 和 temperature 都不可用时使用
+          default: sensor.netcafe_season
+          selector:
+            entity:
+              domain: sensor
+        
+        weather_entity:
+          name: 天气实体（可选，最高优先级）
+          description: >
+            根据室外温度判断：≥26°C开冷气，≤16°C开暖气
+            
+            
+            优先级：天气 > 温度 > 季节
+            
+            
+            如果配置了天气实体，将优先使用
+          default: ""
+          selector:
+            entity:
+              domain: weather
+        
+        temperature_entity:
+          name: 温度传感器（可选，中等优先级）
+          description: >
+            根据室内温度判断：≥26°C开冷气，≤20°C开暖气
+            
+            
+            优先级：天气 > 温度 > 季节
+            
+            
+            没有天气实体时使用此传感器
+          default: ""
+          selector:
+            entity:
+              domain: sensor
+        
+        # 夏季温度设置
+        summer_day_temp:
+          name: 夏季白天温度 (10:00-23:59)
+          default: 20
+          selector:
+            number:
+              min: 16
+              max: 30
+              unit_of_measurement: "°C"
+        
+        summer_night_temp:
+          name: 夏季夜间温度 (00:00-09:59)
+          default: 24
+          selector:
+            number:
+              min: 16
+              max: 30
+              unit_of_measurement: "°C"
+        
+        # 冬季温度设置
+        winter_day_temp:
+          name: 冬季白天温度 (10:00-23:59)
+          default: 26
+          selector:
+            number:
+              min: 16
+              max: 30
+              unit_of_measurement: "°C"
+        
+        winter_night_temp:
+          name: 冬季夜间温度 (00:00-09:59)
+          default: 22
+          selector:
+            number:
+              min: 16
+              max: 30
+              unit_of_measurement: "°C"
+    
+    # ========== 窗帘控制 ==========
+    cover_settings:
+      name: "窗帘控制"
+      icon: mdi:blinds
+      collapsed: true
+      input:
+        enable_covers:
+          name: 启用窗帘控制
+          default: false
+          selector:
+            boolean:
+        
+        cover_entities:
+          name: 窗帘实体
+          description: >
+            选择该包间的窗帘设备
+          default: []
+          selector:
+            entity:
+              domain: cover
+              multiple: true
+        
+        cover_open_on_entry:
+          name: 有人时打开窗帘
+          default: true
+          selector:
+            boolean:
+        
+        cover_close_on_leave:
+          name: 无人时关闭窗帘
+          default: true
+          selector:
+            boolean:
+    
+    # ========== 高级设置 ==========
+    advanced_settings:
+      name: "高级设置"
+      icon: mdi:cog-pause-outline
+      collapsed: true
+      input:
+        delay_seconds:
+          name: 离开后延迟关闭时间
+          description: >
+            检测到所有电脑离线后，等待多少秒才关闭设备。
+            
+            
+            避免短暂离开导致设备频繁开关。
+          default: 100
+          selector:
+            number:
+              min: 0
+              max: 600
+              unit_of_measurement: "秒"
+        
+        custom_conditions:
+          name: 自定义条件 (可选)
+          description: >
+            添加额外的条件，满足条件时才执行自动化
+          default: []
+          selector:
+            condition:
+        
+        custom_actions_on_entry:
+          name: 有人进入时的自定义动作 (可选)
+          default: []
+          selector:
+            action:
+        
+        custom_actions_on_leave:
+          name: 无人离开时的自定义动作 (可选)
+          default: []
+          selector:
+            action:
+
+mode: restart
+max_exceeded: silent
+
+variables:
+  # 基础变量
+  room_name: !input room_name
+  computer_entities: !input computer_entities
+  enable_dnd: !input enable_dnd
+  
+  # 灯光变量
+  enable_lights: !input enable_lights
+  light_entities: !input light_entities
+  light_brightness: !input light_brightness
+  
+  # 空调变量
+  enable_climate: !input enable_climate
+  climate_entities: !input climate_entities
+  season_sensor: !input season_sensor
+  weather_entity: !input weather_entity
+  temperature_entity: !input temperature_entity
+  summer_day_temp: !input summer_day_temp
+  summer_night_temp: !input summer_night_temp
+  winter_day_temp: !input winter_day_temp
+  winter_night_temp: !input winter_night_temp
+  
+  # 窗帘变量
+  enable_covers: !input enable_covers
+  cover_entities: !input cover_entities
+  cover_open_on_entry: !input cover_open_on_entry
+  cover_close_on_leave: !input cover_close_on_leave
+  
+  # 高级变量
+  delay_seconds: !input delay_seconds
+  custom_conditions: !input custom_conditions
+  custom_actions_on_entry: !input custom_actions_on_entry
+  custom_actions_on_leave: !input custom_actions_on_leave
+  
+  # 计算变量
+  any_computer_home: >
+    {{ expand(computer_entities) 
+        | selectattr('state', 'in', ['home', 'on']) 
+        | list | count > 0 }}
+  
+  all_computers_away: >
+    {{ expand(computer_entities) 
+        | selectattr('state', 'in', ['not_home', 'off']) 
+        | list | count == (computer_entities | count) }}
+  
+  # 按优先级计算当前季节：天气 > 温度 > 季节（默认）
+  current_season: >
+    {% if weather_entity and weather_entity != '' and states(weather_entity) not in ['unavailable', 'unknown', 'none'] %}
+      {# 优先使用天气实体（最高优先级） #}
+      {% set temp = state_attr(weather_entity, 'temperature') | float(-999) %}
+      {% if temp != -999 %}
+        {% if temp >= 26 %}
+          夏季
+        {% elif temp <= 16 %}
+          冬季
+        {% else %}
+          春秋季
+        {% endif %}
+      {% else %}
+        {# 天气实体没有温度属性，降级使用温度传感器 #}
+        {% if temperature_entity and temperature_entity != '' and states(temperature_entity) not in ['unavailable', 'unknown', 'none'] %}
+          {% set temp = states(temperature_entity) | float(-999) %}
+          {% if temp != -999 %}
+            {% if temp >= 26 %}
+              夏季
+            {% elif temp <= 20 %}
+              冬季
+            {% else %}
+              春秋季
+            {% endif %}
+          {% else %}
+            {{ states(season_sensor) }}
+          {% endif %}
+        {% else %}
+          {{ states(season_sensor) }}
+        {% endif %}
+      {% endif %}
+    {% elif temperature_entity and temperature_entity != '' and states(temperature_entity) not in ['unavailable', 'unknown', 'none'] %}
+      {# 使用温度传感器（中等优先级） #}
+      {% set temp = states(temperature_entity) | float(-999) %}
+      {% if temp != -999 %}
+        {% if temp >= 26 %}
+          夏季
+        {% elif temp <= 20 %}
+          冬季
+        {% else %}
+          春秋季
+        {% endif %}
+      {% else %}
+        {{ states(season_sensor) }}
+      {% endif %}
+    {% else %}
+      {# 使用季节传感器（默认保底） #}
+      {{ states(season_sensor) }}
+    {% endif %}
+
+# ========== 触发器 ==========
+triggers:
+  # 任一电脑上线
+  - trigger: state
+    entity_id: !input computer_entities
+    to: 
+      - "home"
+      - "on"
+    id: "computer_online"
+  
+  # 所有电脑离线
+  - trigger: template
+    value_template: "{{ all_computers_away }}"
+    id: "all_computers_offline"
+
+# ========== 条件 ==========
+conditions:
+  # 应用自定义条件
+  - condition: !input custom_conditions
+
+# ========== 动作 ==========
+actions:
+  - choose:
+      # ========== 有人进入 ==========
+      - conditions:
+          - condition: trigger
+            id: "computer_online"
+          # 检查勿扰模式
+          - condition: template
+            value_template: >
+              {{ not enable_dnd or is_state('input_boolean.dnd_' ~ room_name | slugify, 'off') }}
+        sequence:
+          # === 开启灯光 ===
+          - if:
+              - condition: template
+                value_template: "{{ enable_lights and light_entities | count > 0 }}"
+            then:
+              - alias: "开启灯光"
+                action: light.turn_on
+                target:
+                  entity_id: "{{ light_entities }}"
+                data:
+                  brightness_pct: "{{ light_brightness }}"
+          
+          # === 打开窗帘 ===
+          - if:
+              - condition: template
+                value_template: "{{ enable_covers and cover_open_on_entry and cover_entities | count > 0 }}"
+            then:
+              - alias: "打开窗帘"
+                action: cover.open_cover
+                target:
+                  entity_id: "{{ cover_entities }}"
+          
+          # === 空调控制（按季节和时间） ===
+          - if:
+              - condition: template
+                value_template: "{{ enable_climate and climate_entities | count > 0 }}"
+            then:
+              - choose:
+                  # 夏季
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ current_season == '夏季' }}"
+                    sequence:
+                      - choose:
+                          # 夏季白天 (10:00-23:59)
+                          - conditions:
+                              - condition: time
+                                after: "10:00:00"
+                                before: "23:59:59"
+                            sequence:
+                              - alias: "开启空调 - 夏季白天"
+                                action: climate.turn_on
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                              - alias: "设置温度 - 夏季白天"
+                                action: climate.set_temperature
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                                data:
+                                  temperature: "{{ summer_day_temp }}"
+                          
+                          # 夏季夜间 (00:00-09:59)
+                          - conditions:
+                              - condition: time
+                                after: "00:00:00"
+                                before: "09:59:59"
+                            sequence:
+                              - alias: "开启空调 - 夏季夜间"
+                                action: climate.turn_on
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                              - alias: "设置温度 - 夏季夜间"
+                                action: climate.set_temperature
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                                data:
+                                  temperature: "{{ summer_night_temp }}"
+                  
+                  # 冬季
+                  - conditions:
+                      - condition: template
+                        value_template: "{{ current_season == '冬季' }}"
+                    sequence:
+                      - choose:
+                          # 冬季白天 (10:00-23:59)
+                          - conditions:
+                              - condition: time
+                                after: "10:00:00"
+                                before: "23:59:59"
+                            sequence:
+                              - alias: "开启空调 - 冬季白天"
+                                action: climate.turn_on
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                              - alias: "设置温度 - 冬季白天"
+                                action: climate.set_temperature
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                                data:
+                                  temperature: "{{ winter_day_temp }}"
+                          
+                          # 冬季夜间 (00:00-09:59)
+                          - conditions:
+                              - condition: time
+                                after: "00:00:00"
+                                before: "09:59:59"
+                            sequence:
+                              - alias: "开启空调 - 冬季夜间"
+                                action: climate.turn_on
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                              - alias: "设置温度 - 冬季夜间"
+                                action: climate.set_temperature
+                                target:
+                                  entity_id: "{{ climate_entities }}"
+                                data:
+                                  temperature: "{{ winter_night_temp }}"
+          
+          # === 执行自定义动作 ===
+          - if:
+              - condition: template
+                value_template: "{{ custom_actions_on_entry | length > 0 }}"
+            then:
+              - alias: "执行自定义动作 - 有人进入"
+                choose: []
+                default: !input custom_actions_on_entry
+      
+      # ========== 无人离开 ==========
+      - conditions:
+          - condition: trigger
+            id: "all_computers_offline"
+        sequence:
+          # 延迟
+          - alias: "延迟关闭"
+            delay:
+              seconds: "{{ delay_seconds }}"
+          
+          # === 关闭灯光 ===
+          - if:
+              - condition: template
+                value_template: "{{ enable_lights and light_entities | count > 0 }}"
+            then:
+              - alias: "关闭灯光"
+                action: light.turn_off
+                target:
+                  entity_id: "{{ light_entities }}"
+          
+          # === 关闭窗帘 ===
+          - if:
+              - condition: template
+                value_template: "{{ enable_covers and cover_close_on_leave and cover_entities | count > 0 }}"
+            then:
+              - alias: "关闭窗帘"
+                action: cover.close_cover
+                target:
+                  entity_id: "{{ cover_entities }}"
+          
+          # === 关闭空调 ===
+          - if:
+              - condition: template
+                value_template: "{{ enable_climate and climate_entities | count > 0 }}"
+            then:
+              - alias: "关闭空调"
+                action: climate.turn_off
+                target:
+                  entity_id: "{{ climate_entities }}"
+          
+          # === 执行自定义动作 ===
+          - if:
+              - condition: template
+                value_template: "{{ custom_actions_on_leave | length > 0 }}"
+            then:
+              - alias: "执行自定义动作 - 无人离开"
+                choose: []
+                default: !input custom_actions_on_leave

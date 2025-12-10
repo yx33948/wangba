@@ -1,0 +1,13 @@
+{
+  "domain": "netcafe_automation",
+  "name": "网吧智能自动化",
+  "codeowners": ["@netcafe"],
+  "config_flow": true,
+  "dependencies": ["group", "automation", "input_boolean", "network"],
+  "documentation": "https://github.com/netcafe/netcafe_automation",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/netcafe/netcafe_automation/issues",
+  "requirements": ["pyroute2==0.7.5"],
+  "version": "2.0.0"
+}
