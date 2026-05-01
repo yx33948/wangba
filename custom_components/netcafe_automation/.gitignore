@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.log
+*.bak
+.fnsync_temp_dir/
+www_dev/node_modules/
