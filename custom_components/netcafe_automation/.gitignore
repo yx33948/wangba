@@ -3,4 +3,5 @@ __pycache__/
 *.log
 *.bak
 .fnsync_temp_dir/
+www_dev/
 www_dev/node_modules/
