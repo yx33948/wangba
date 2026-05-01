@@ -1,4 +1,0 @@
-interface:
-  display_name: "HA Device Connect"
-  short_description: "Design and implement Home Assistant device access and connection flows"
-  default_prompt: "Use $ha-device-connection-development to plan or implement Home Assistant device discovery, connection, and control for this project."
