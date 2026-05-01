@@ -1,0 +1,7 @@
+{
+  "api_base_url": "https://baota.yx33948.top/api/",
+  "fallback_api_base_urls": [
+    "https://121.199.64.33/api/"
+  ],
+  "admin_api_token": "change-this-admin-token-now"
+}

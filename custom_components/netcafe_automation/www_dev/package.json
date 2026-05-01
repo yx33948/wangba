@@ -1,0 +1,18 @@
+{
+  "name": "netcafe-panel-release",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Release builder for the netcafe web panel",
+  "scripts": {
+    "build:release": "node scripts/build-release.mjs",
+    "build:release:hashed": "node scripts/build-release.mjs --hashed",
+    "publish:stable": "node scripts/build-release.mjs",
+    "publish:hashed": "node scripts/build-release.mjs --hashed"
+  },
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "html-minifier-terser": "^7.2.0",
+    "javascript-obfuscator": "^4.1.1",
+    "terser": "^5.39.2"
+  }
+}

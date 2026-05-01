@@ -1,0 +1,115 @@
+reload_from_csv:
+  name: 重新加载 CSV 配置
+  description: 从 CSV 文件重新加载所有包间配置
+  fields: {}
+
+export_csv:
+  name: 导出 CSV 配置
+  description: 将当前配置导出为 CSV 文件到 www 目录
+  fields:
+    filename:
+      name: 文件名
+      description: 导出的 CSV 文件名（不含扩展名）
+      required: false
+      default: netcafe_devices
+      example: netcafe_backup
+
+import_csv_from_file:
+  name: 从文件导入 CSV
+  description: 从 Home Assistant www 目录导入 CSV 文件
+  fields:
+    filename:
+      name: 文件名
+      description: 要导入的 CSV 文件名（不含扩展名）
+      required: false
+      default: netcafe_import
+      example: netcafe_import
+
+import_csv_direct:
+  name: 直接导入 CSV 内容
+  description: 直接通过 CSV 内容导入配置
+  fields:
+    csv_content:
+      name: CSV 内容
+      description: CSV 格式的配置内容（包含 ip_address 和 room_name 列，支持逗号、空格或制表符分隔）
+      required: true
+      example: "ip_address,room_name\n192.168.1.101,1号包厢\n192.168.1.102,2号包厢"
+
+clear_all_data:
+  name: 一键清除追踪实体
+  description: 清空 CSV 持久化和追踪实体，可按 entry_id 清理单个条目
+  fields:
+    entry_id:
+      name: 配置条目ID
+      description: 可选，不填则清理所有网吧IP追踪条目
+      required: false
+      example: 1234567890abcdef1234567890abcdef
+
+clear_all_device_trackers:
+  name: 一键清除所有device_tracker
+  description: 清空所有 netcafe 生成的 device_tracker（含未分组/孤立实体）并清空持久化来源
+  fields: {}
+
+activate_license:
+  name: 激活卡密
+  description: 使用卡密密钥激活系统授权
+  fields:
+    license_key:
+      name: 卡密密钥
+      description: 完整的卡密字符串（格式：XXXXXXXXXXXXXXXXXXXX-YYYYMMDD）
+      required: true
+      example: NETCAFEA1B2C3D4E5F6G7-20261231
+    device_id:
+      name: 设备ID
+      description: 可选的设备标识符
+      required: false
+      example: device-001
+
+get_license_status:
+  name: 获取卡密状态
+  description: 查询当前卡密的授权状态和剩余时间
+  fields: {}
+
+deactivate_license:
+  name: 停用卡密
+  description: 停用当前激活的卡密授权
+  fields: {}
+
+renew_license:
+  name: 延期卡密
+  description: 在线为当前卡密延期续费（需服务端支持），延期后自动同步新到期日期
+  fields:
+    extra_days:
+      name: 延期天数
+      description: 要增加的天数（1-3650）
+      required: true
+      default: 30
+      example: 30
+
+create_trial_license:
+  name: 创建试用卡密
+  description: 在服务端创建一次性临时试用卡密（用于测试或客户试用），创建后需手动激活
+  fields:
+    hours:
+      name: 试用时长
+      description: 试用小时数（1-720）
+      required: false
+      default: 24
+      example: 72
+    notes:
+      name: 备注
+      description: 试用卡密备注信息
+      required: false
+      default: ""
+      example: "客户A试用3天"
+
+# 卡密激活界面提示
+license_activation:
+  name: 卡密激活
+  description: 在首次配置时激活卡密授权
+  fields:
+    license_key:
+      name: 卡密密钥
+      description: 完整的卡密字符串
+      required: true
+      example: NETCAFEA1B2C3D4E5F6G7-20261231

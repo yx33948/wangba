@@ -1,59 +1,45 @@
-"""Constants for the 网吧智能自动化 integration."""
+"""Constants for the netcafe_automation integration."""
 
 DOMAIN = "netcafe_automation"
+HUB_NAME = "智慧网吧"
+HUB_MODEL = "智慧网吧"
+HUB_MANUFACTURER = "老师傅 微信：ha33948"
 
-# CSV Fields - v3.0 Simplified Format
-FIELD_ROOM_NAME = "room_name"
+# CSV fields
 FIELD_IP_ADDRESS = "ip_address"
-FIELD_CLIMATE_ENTITY = "climate_entity"
-FIELD_LIGHT_ENTITY = "light_entity"
-FIELD_COVER_ENTITY = "cover_entity"
-
-# Legacy fields (backwards compatibility)
-FIELD_ENTITY_ID = "entity_id"
+FIELD_ROOM_NAME = "room_name"
 
 # Entity prefixes
 PREFIX_DEVICE_TRACKER = "device_tracker."
-PREFIX_CLIMATE = "climate."
-PREFIX_LIGHT = "light."
-PREFIX_COVER = "cover."
-PREFIX_INPUT_BOOLEAN = "input_boolean."
 
-# Season values
-SEASON_SUMMER = "夏季"
-SEASON_WINTER = "冬季"
-SEASON_SPRING_AUTUMN = "春秋季"
-
-# Configuration keys
-CONF_CSV_FILE = "csv_file"
+# Config keys
+CONF_DEVICES = "devices"
 CONF_CSV_CONTENT = "csv_content"
-CONF_ENABLE_AUTOMATION = "enable_automation"
-CONF_SEASON_REGION = "season_region"
-CONF_WEATHER_ENTITY = "weather_entity"
-CONF_TEMPERATURE_ENTITY = "temperature_entity"
-
-# Season regions
-REGION_NORTH = "north"
-REGION_SOUTH = "south"
-REGION_CUSTOM = "custom"
 
 # Service names
 SERVICE_RELOAD_CSV = "reload_from_csv"
 SERVICE_EXPORT_CSV = "export_csv"
-SERVICE_DOWNLOAD_TEMPLATE = "download_template"
 SERVICE_IMPORT_CSV_FROM_FILE = "import_csv_from_file"
 SERVICE_IMPORT_CSV_DIRECT = "import_csv_direct"
+SERVICE_CLEAR_ALL_DATA = "clear_all_data"
+SERVICE_CLEAR_ALL_DEVICE_TRACKERS = "clear_all_device_trackers"
 
-# Default values
-DEFAULT_DELAY_SECONDS = 100
-DEFAULT_CONSIDER_HOME = 45  # Consider device home for 45 seconds after last seen
-PROBE_INTERVAL = 5  # Scan interval in seconds (very fast detection)
+# Defaults
+DEFAULT_CONSIDER_HOME = 90
+FAST_ONLINE_INTERVAL = 3
+PROBE_INTERVAL = FAST_ONLINE_INTERVAL
+PING_TIMEOUT_MS_WINDOWS = 1000
+PING_TIMEOUT_S_LINUX = 1
+PING_WAIT_TIMEOUT = 1.2
+PING_CONCURRENCY = 32
+PING_RETRY_DELAY_SECONDS = 1
+OFFLINE_FAILURE_THRESHOLD = 2
+OFFLINE_CONFIRM_SECONDS = 10
 
-# CSV Template - v3.0 Simplified
-CSV_TEMPLATE = """room_name,ip_address,climate_entity,light_entity,cover_entity
-双包38,192.168.1.38,,,
-双包38,192.168.1.39,climate.ac_38,light.light_38,cover.curtain_38
-单间40,192.168.1.40,climate.ac_40,light.light_40,
-三人包50,192.168.1.50,,,
-三人包50,192.168.1.51,,,
-三人包50,192.168.1.52,climate.ac_50,light.light_50,"""
+CSV_TEMPLATE = """ip_address,room_name
+192.168.1.38,双包38
+192.168.1.39,双包38
+192.168.1.40,单间40
+192.168.1.50,三人区50
+192.168.1.51,三人区50
+192.168.1.52,三人区50"""

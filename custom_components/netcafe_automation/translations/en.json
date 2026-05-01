@@ -2,64 +2,131 @@
   "config": {
     "step": {
       "user": {
-        "title": "Setup Internet Cafe Automation",
-        "description": "Please paste CSV content with room configurations.\n\nCSV format example:\n```\nroom_name,entity_id,ip_address\nDouble Room 38-39,device_tracker.hostname38,192.168.1.38\nDouble Room 38-39,climate.ac_38,\nDouble Room 38-39,light.room38_main,\n```\n\nCopy from Excel: Select all → Ctrl+C → Paste here\nCopy from file: Open with Notepad → Select all → Copy → Paste here",
+        "title": "Choose Setup Method",
+        "description": "Select how you want to add devices.",
+        "data": {
+          "input_method": "Setup Method"
+        }
+      },
+      "form": {
+        "title": "Add Devices",
+        "description": "Current devices: {device_count} | Rooms: {room_count}\n\n{device_list}",
+        "data": {
+          "room_name": "Room Name",
+          "ip_address": "IP Address",
+          "action": "Action"
+        }
+      },
+      "csv": {
+        "title": "Import CSV",
+        "description": "Paste CSV content that contains `ip_address` and `room_name` columns.",
         "data": {
           "csv_content": "CSV Content"
         }
       },
-      "confirm": {
-        "title": "Confirm Configuration",
-        "description": "Detected {room_count} rooms.\n\nEnable automations?",
+      "activate_license": {
+        "title": "Activate License",
+        "description": "{status_hint}\n\n{tip}",
         "data": {
-          "enable_automation": "Enable Automation"
+          "license_key": "License Key"
+        }
+      },
+      "weather": {
+        "title": "Configure Weather Location",
+        "description": "{tip}",
+        "data": {
+          "weather_domain": "Weather Server Domain",
+          "weather_search": "City or County",
+          "weather_area_id": "Weather Location"
         }
       }
     },
     "error": {
-      "no_csv_file": "No CSV content provided, please paste data",
-      "invalid_csv": "Invalid CSV format, please check header row and data",
-      "cannot_read_file": "Cannot parse CSV content, please check format"
+      "no_csv_file": "No CSV content provided",
+      "invalid_csv": "Invalid CSV format. Make sure ip_address and room_name columns exist.",
+      "cannot_read_file": "Unable to parse the CSV content",
+      "no_devices": "At least one device is required",
+      "room_name_required": "Room name is required",
+      "ip_address_required": "IP address is required",
+      "invalid_ip": "Invalid IP address format",
+      "weather_lookup_failed": "Failed to resolve the selected weather location",
+      "weather_search_failed": "Failed to search weather locations",
+      "weather_location_not_found": "No matching weather location was found",
+      "weather_location_required": "Search for and select a weather location first"
     },
     "abort": {
-      "already_configured": "Configuration already exists"
+      "already_configured": "This configuration already exists"
     }
   },
   "options": {
     "step": {
       "init": {
-        "title": "Internet Cafe Automation Options",
-        "description": "Manage automation configuration",
+        "title": "Netcafe IP Tracking Options",
+        "description": "Current configuration: {room_count} rooms, {device_count} devices\n\nSelect an action.",
         "data": {
-          "action": "Select Action"
+          "action": "Action"
+        }
+      },
+      "add_devices": {
+        "title": "Add or Remove Devices",
+        "description": "Current devices: {device_count} | Rooms: {room_count}\n\n{device_list}\n\n{tip}",
+        "data": {
+          "room_name": "Room Name",
+          "ip_address": "IP Address",
+          "action": "Action"
         }
       },
       "update_csv": {
         "title": "Update CSV Configuration",
-        "description": "Paste new CSV content to update configuration. Format: room_name,entity_id,ip_address",
+        "description": "Paste new CSV content to replace the current configuration.",
         "data": {
           "csv_content": "CSV Content"
+        }
+      },
+      "activate_license": {
+        "title": "Manage License",
+        "description": "{status_hint}\n\n{tip}",
+        "data": {
+          "license_key": "New License Key",
+          "action": "Action"
+        }
+      },
+      "weather_settings": {
+        "title": "Weather Settings",
+        "description": "{tip}",
+        "data": {
+          "weather_domain": "Weather Server Domain",
+          "weather_search": "City or County",
+          "weather_area_id": "Weather Location"
         }
       }
     },
     "error": {
       "no_csv_file": "No CSV content provided",
       "invalid_csv": "Invalid CSV format",
-      "cannot_read_file": "Cannot parse CSV content"
+      "cannot_read_file": "Unable to parse the CSV content",
+      "no_devices": "At least one device is required",
+      "room_name_required": "Room name is required",
+      "ip_address_required": "IP address is required",
+      "invalid_ip": "Invalid IP address format",
+      "weather_lookup_failed": "Failed to resolve the selected weather location",
+      "weather_search_failed": "Failed to search weather locations",
+      "weather_location_not_found": "No matching weather location was found",
+      "weather_location_required": "Search for and select a weather location first"
     }
   },
   "services": {
     "reload_from_csv": {
       "name": "Reload CSV Configuration",
-      "description": "Reload all room configurations from CSV file"
+      "description": "Reload all room configuration from a CSV file."
     },
     "export_csv": {
       "name": "Export CSV Configuration",
-      "description": "Export current configuration as standard CSV file to www directory, accessible at /local/netcafe_rooms.csv",
+      "description": "Export the current configuration to Home Assistant's www directory.",
       "fields": {
         "filename": {
           "name": "Filename",
-          "description": "Name of the exported CSV file (without extension)"
+          "description": "CSV filename without extension"
         }
       }
     }

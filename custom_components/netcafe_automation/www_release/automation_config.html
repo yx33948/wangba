@@ -1,0 +1,492 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>包厢自动化配置</title><link rel="stylesheet" href="/api/netcafe/automation_refactor.css"></head><body class="antialiased"><div class="app-container"><section class="hero"><div class="hero-text"><h1>包厢自动化配置</h1><p>这里负责每个包厢的实体映射、夏季/冬季模式、自动开关延时、灯光全开/半开/全关，以及新风档位。配置保存在集成自己的存储里，自动化由后端持续执行，不依赖页面常驻。</p></div><div class="hero-actions"><button class="secondary" onclick="reloadAll()"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> 刷新数据</button> <a href="/api/netcafe/panel" style="text-decoration: none;"><button type="button" class="soft"><svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-right:6px"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg> 返回看板</button></a></div></section><div class="message" id="messageBox"></div><section class="layout"><aside class="card room-list-aside"><h2>包厢列表</h2><div id="roomList"></div></aside><main class="card editor"><div id="editorRoot" class="room-empty">正在加载配置...</div></main></section></div><script>const state = {
+      overview: null,
+      config: null,
+      entities: null,
+      currentRoomId: null,
+    };
+
+    function showMessage(text, type) {
+      const box = document.getElementById('messageBox');
+      box.textContent = text || '';
+      box.className = 'message' + (type ? ' ' + type : '');
+      box.style.display = text ? 'block' : 'none';
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    async function requestJson(url, options) {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (error) {
+        data = null;
+      }
+      if (!response.ok || !data || data.success === false) {
+        throw new Error((data && data.message) || ('请求失败: ' + response.status));
+      }
+      return data;
+    }
+
+    function roomList() {
+      return state.overview?.data?.rooms || [];
+    }
+
+    function currentRoom() {
+      return roomList().find((room) => room.room_id === state.currentRoomId) || null;
+    }
+
+    function currentRoomConfig() {
+      return state.config?.data?.rooms?.[state.currentRoomId] || null;
+    }
+
+    function candidateById(entityId) {
+      const groups = state.entities?.data || {};
+      for (const list of Object.values(groups)) {
+        const found = (list || []).find((item) => item.entity_id === entityId);
+        if (found) return found;
+      }
+      return null;
+    }
+
+    function renderRoomList() {
+      const root = document.getElementById('roomList');
+      const rooms = roomList();
+      if (!rooms.length) {
+        root.innerHTML = '<div class="room-empty">当前没有包厢数据</div>';
+        return;
+      }
+      root.innerHTML = '<div class="room-items">' + rooms.map((room) => `
+        <div class="room-item ${room.room_id === state.currentRoomId ? 'active' : ''}" onclick='selectRoom(${JSON.stringify(room.room_id)})'>
+          <strong>${escapeHtml(room.room_name)}</strong>
+          <small>${escapeHtml(room.entry_title)} · <span style="color: ${room.occupied ? '#10b981' : '#64748b'}">• ${room.occupied ? '有人' : '无人'}</span> · ${room.occupied_count}/${room.computer_count} 在线</small>
+        </div>
+      `).join('') + '</div>';
+    }
+
+    function selectOptions(items, selectedValue, placeholder) {
+      const options = [`<option value="">${escapeHtml(placeholder || '未选择')}</option>`];
+      for (const item of items || []) {
+        options.push(
+          `<option value="${escapeHtml(item.entity_id)}" ${item.entity_id === selectedValue ? 'selected' : ''}>${escapeHtml(item.friendly_name || item.entity_id)} (${escapeHtml(item.entity_id)})</option>`
+        );
+      }
+      return options.join('');
+    }
+
+    function selectedAcModes(acEntityId, selectedMode) {
+      const entity = candidateById(acEntityId);
+      const modes = entity && entity.entity_id.startsWith('climate.')
+        ? (entity.attributes?.hvac_modes || [])
+        : ['cool', 'heat', 'auto', 'fan_only', 'dry'];
+      const unique = Array.from(new Set(modes.filter(Boolean)));
+      return unique.map((mode) => `<option value="${escapeHtml(mode)}" ${mode === selectedMode ? 'selected' : ''}>${escapeHtml(mode)}</option>`).join('');
+    }
+
+    function selectedAcFanModes(acEntityId, selectedFanMode) {
+      const entity = candidateById(acEntityId);
+      const modes = entity && entity.entity_id.startsWith('climate.')
+        ? (entity.attributes?.fan_modes || [])
+        : ['auto'];
+      const unique = Array.from(new Set((modes && modes.length ? modes : ['auto']).filter(Boolean)));
+      return unique.map((mode) => `<option value="${escapeHtml(mode)}" ${mode === selectedFanMode ? 'selected' : ''}>${escapeHtml(mode)}</option>`).join('');
+    }
+
+    function selectedFreshModes(freshAirId, selectedMode) {
+      const entity = candidateById(freshAirId);
+      const modes = entity && entity.entity_id.startsWith('fan.')
+        ? (entity.attributes?.preset_modes || [])
+        : [];
+      const unique = Array.from(new Set((modes && modes.length ? modes : ['auto']).filter(Boolean)));
+      return unique.map((mode) => `<option value="${escapeHtml(mode)}" ${mode === selectedMode ? 'selected' : ''}>${escapeHtml(mode)}</option>`).join('');
+    }
+
+    function checkCard(name, value, label, checked) {
+      return `
+        <label class="check-card">
+          <input type="checkbox" name="${escapeHtml(name)}" value="${escapeHtml(value)}" ${checked ? 'checked' : ''}>
+          <span>${escapeHtml(label)}</span>
+        </label>
+      `;
+    }
+
+    function renderToggle(id, label, isChecked) {
+      return `
+        <div class="toggle-row">
+          <span>${escapeHtml(label)}</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="${id}" ${isChecked ? 'checked' : ''}>
+            <span class="slider-toggle"></span>
+          </label>
+        </div>
+      `;
+    }
+
+    function renderEditor() {
+      const root = document.getElementById('editorRoot');
+      const room = currentRoom();
+      const config = currentRoomConfig();
+      if (!room || !config) {
+        root.className = 'room-empty';
+        root.textContent = '请选择一个包厢开始配置';
+        return;
+      }
+
+      const climateItems = [
+        ...(state.entities?.data?.climate || []),
+        ...(state.entities?.data?.switch || []),
+      ];
+      const freshItems = [
+        ...(state.entities?.data?.fan || []),
+        ...(state.entities?.data?.switch || []),
+      ];
+      const lightItems = state.entities?.data?.light || [];
+      const selectedLights = new Set(config.entities.lights || []);
+      const acIsClimate = (config.entities.ac || '').startsWith('climate.');
+
+      root.className = '';
+      root.innerHTML = `
+        <div class="editor-header">
+          <div class="editor-title">
+            <h2>${escapeHtml(room.room_name)}</h2>
+            <div class="meta">
+              <span>${escapeHtml(room.entry_title)}</span>
+              <span class="meta-badge ${room.occupied ? 'active' : ''}">${room.occupied ? '● 有人' : '○ 无人'}</span>
+              <span>${room.occupied_count}/${room.computer_count} 在线</span>
+            </div>
+          </div>
+          <div class="hero-actions">
+            <button class="secondary" onclick="reloadAll(true)">重新读取</button>
+            <button class="primary" onclick="saveCurrentRoom()">
+              <svg width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" style="margin-right:6px">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              保存包厢配置
+            </button>
+          </div>
+        </div>
+
+        <div class="section-grid">
+          <div class="section-block">
+            <h3>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-primary"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+              实体映射
+            </h3>
+            <div class="stack">
+              <div class="field">
+                <label>空调实体</label>
+                <select id="acEntity">${selectOptions(climateItems, config.entities.ac, '选择 climate 或 switch 空调')}</select>
+                <div class="helper">优先选择 climate.*。开关型空调也可选 switch.*（仅提供开关控制）。</div>
+              </div>
+              <div class="field">
+                <label>新风实体</label>
+                <select id="freshAirEntity">${selectOptions(freshItems, config.entities.fresh_air, '选择 fan 或 switch 新风')}</select>
+              </div>
+              <div class="field">
+                <label>灯光实体</label>
+                <div class="check-grid">
+                  ${lightItems.map((item) => checkCard('light_select', item.entity_id, item.friendly_name || item.entity_id, selectedLights.has(item.entity_id))).join('') || '<div class="helper">未发现 light.* 实体</div>'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-block">
+            <h3>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-amber-500"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.334.334A2.015 2.015 0 0113.81 19h-3.62c-.52 0-1.02-.2-1.4-.555l-.334-.334z"/></svg>
+              灯光预设
+            </h3>
+            <div class="stack">
+              <div class="field">
+                <label>全开</label>
+                <div class="check-grid">
+                  ${lightItems.map((item) => checkCard('preset_full_on', item.entity_id, item.friendly_name || item.entity_id, (config.lighting_presets.full_on || []).includes(item.entity_id))).join('')}
+                </div>
+              </div>
+              <div class="field">
+                <label>半开</label>
+                <div class="check-grid">
+                  ${lightItems.map((item) => checkCard('preset_half_on', item.entity_id, item.friendly_name || item.entity_id, (config.lighting_presets.half_on || []).includes(item.entity_id))).join('')}
+                </div>
+              </div>
+              <div class="field">
+                <label>全关</label>
+                <div class="check-grid">
+                  ${lightItems.map((item) => checkCard('preset_full_off', item.entity_id, item.friendly_name || item.entity_id, (config.lighting_presets.full_off || []).includes(item.entity_id))).join('')}
+                </div>
+              </div>
+              <div class="helper">在此勾选的灯具必须包含在上方的“灯光实体”中，系统会自动过滤不属于该包厢的灯具。</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-grid">
+          <div class="section-block">
+            <h3>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-blue-500"><path d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /><path d="M12 9v2m0 4h.01" /></svg>
+              空调季节模式
+            </h3>
+            <div class="stack">
+              <div class="field">
+                <label>当前季节</label>
+                <select id="selectedSeason">
+                  <option value="summer" ${config.modes.selected_season === 'summer' ? 'selected' : ''}>夏季</option>
+                  <option value="winter" ${config.modes.selected_season === 'winter' ? 'selected' : ''}>冬季</option>
+                </select>
+              </div>
+
+              <div class="section-block" style="background:var(--surface); border-color:var(--line-strong);">
+                <h4 style="margin:0 0 16px; font-size:15px;">夏季模式</h4>
+                <div class="stack">
+                  ${renderToggle('summerEnabled', '启用夏季模式', config.modes.summer.enabled)}
+                  <div class="inline-fields">
+                    <div class="field">
+                      <label>运行模式</label>
+                      <select id="summerHvacMode">${selectedAcModes(config.entities.ac, config.modes.summer.hvac_mode)}</select>
+                    </div>
+                    <div class="field">
+                      <label>风速</label>
+                      <select id="summerFanMode">${selectedAcFanModes(config.entities.ac, config.modes.summer.fan_mode)}</select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>目标温度</label>
+                    <input type="number" id="summerTemp" min="16" max="32" step="1" value="${escapeHtml(config.modes.summer.temperature)}" ${acIsClimate ? '' : 'disabled'}>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-block" style="background:var(--surface); border-color:var(--line-strong);">
+                <h4 style="margin:0 0 16px; font-size:15px;">冬季模式</h4>
+                <div class="stack">
+                  ${renderToggle('winterEnabled', '启用冬季模式', config.modes.winter.enabled)}
+                  <div class="inline-fields">
+                    <div class="field">
+                      <label>运行模式</label>
+                      <select id="winterHvacMode">${selectedAcModes(config.entities.ac, config.modes.winter.hvac_mode)}</select>
+                    </div>
+                    <div class="field">
+                      <label>风速</label>
+                      <select id="winterFanMode">${selectedAcFanModes(config.entities.ac, config.modes.winter.fan_mode)}</select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>目标温度</label>
+                    <input type="number" id="winterTemp" min="16" max="32" step="1" value="${escapeHtml(config.modes.winter.temperature)}" ${acIsClimate ? '' : 'disabled'}>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-block">
+            <h3>
+              <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" class="text-green-500"><path d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+              自动化规则
+            </h3>
+            <div class="stack">
+              ${renderToggle('automationEnabled', '自动化系统总开关', config.automation.enabled)}
+
+              <div class="section-block" style="background:var(--surface); border-color:var(--line-strong);">
+                <h4 style="margin:0 0 16px; font-size:15px;">空调</h4>
+                <div class="stack">
+                  ${renderToggle('acAutoOn', '有人自动开启', config.automation.ac.auto_on)}
+                  ${renderToggle('acAutoOff', '无人自动关闭', config.automation.ac.auto_off)}
+                  <div class="inline-fields">
+                    <div class="field">
+                      <label>开机延迟(秒)</label>
+                      <input type="number" id="acOnDelay" min="0" step="1" value="${escapeHtml(config.automation.ac.on_delay_sec)}">
+                    </div>
+                    <div class="field">
+                      <label>关机延迟(秒)</label>
+                      <input type="number" id="acOffDelay" min="0" step="1" value="${escapeHtml(config.automation.ac.off_delay_sec)}">
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-block" style="background:var(--surface); border-color:var(--line-strong);">
+                <h4 style="margin:0 0 16px; font-size:15px;">灯光</h4>
+                <div class="stack">
+                  ${renderToggle('lightEnabled', '启用灯光自动化', config.automation.light.enabled)}
+                  ${renderToggle('lightAutoOn', '有人自动开灯', config.automation.light.auto_on)}
+                  ${renderToggle('lightAutoOff', '无人自动关灯', config.automation.light.auto_off)}
+                  <div class="inline-fields">
+                    <div class="field">
+                      <label>有人时执行</label>
+                      <select id="arrivalPreset">
+                        <option value="full_on" ${config.automation.light.arrival_preset === 'full_on' ? 'selected' : ''}>全开</option>
+                        <option value="half_on" ${config.automation.light.arrival_preset === 'half_on' ? 'selected' : ''}>半开</option>
+                        <option value="full_off" ${config.automation.light.arrival_preset === 'full_off' ? 'selected' : ''}>全关</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>无人时执行</label>
+                      <select id="departurePreset">
+                        <option value="full_on" ${config.automation.light.departure_preset === 'full_on' ? 'selected' : ''}>全开</option>
+                        <option value="half_on" ${config.automation.light.departure_preset === 'half_on' ? 'selected' : ''}>半开</option>
+                        <option value="full_off" ${config.automation.light.departure_preset === 'full_off' ? 'selected' : ''}>全关</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="section-block" style="background:var(--surface); border-color:var(--line-strong);">
+                <h4 style="margin:0 0 16px; font-size:15px;">新风</h4>
+                <div class="stack">
+                  ${renderToggle('freshEnabled', '启用新风自动化', config.automation.fresh_air.enabled)}
+                  ${renderToggle('freshAutoOn', '有人自动开启', config.automation.fresh_air.auto_on)}
+                  ${renderToggle('freshAutoOff', '无人自动关闭', config.automation.fresh_air.auto_off)}
+                  <div class="inline-fields">
+                    <div class="field">
+                      <label>开机延迟(秒)</label>
+                      <input type="number" id="freshOnDelay" min="0" step="1" value="${escapeHtml(config.automation.fresh_air.on_delay_sec)}">
+                    </div>
+                    <div class="field">
+                      <label>关机延迟(秒)</label>
+                      <input type="number" id="freshOffDelay" min="0" step="1" value="${escapeHtml(config.automation.fresh_air.off_delay_sec)}">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label>默认档位</label>
+                    <select id="freshMode">${selectedFreshModes(config.entities.fresh_air, config.automation.fresh_air.fan_mode)}</select>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function readCheckedValues(name) {
+      return Array.from(document.querySelectorAll(`input[name="${name}"]:checked`)).map((item) => item.value);
+    }
+
+    function numberValue(id, fallback) {
+      const input = document.getElementById(id);
+      const value = input ? Number(input.value) : Number(fallback);
+      return Number.isFinite(value) ? value : Number(fallback);
+    }
+
+    function collectCurrentRoomConfig() {
+      const room = currentRoom();
+      const existing = currentRoomConfig();
+      if (!room || !existing) return null;
+      return {
+        room_id: room.room_id,
+        room_name: room.room_name,
+        entities: {
+          ac: document.getElementById('acEntity').value || '',
+          lights: readCheckedValues('light_select'),
+          fresh_air: document.getElementById('freshAirEntity').value || '',
+        },
+        lighting_presets: {
+          full_on: readCheckedValues('preset_full_on'),
+          half_on: readCheckedValues('preset_half_on'),
+          full_off: readCheckedValues('preset_full_off'),
+        },
+        modes: {
+          selected_season: document.getElementById('selectedSeason').value,
+          summer: {
+            enabled: document.getElementById('summerEnabled').checked,
+            hvac_mode: document.getElementById('summerHvacMode').value,
+            temperature: numberValue('summerTemp', existing.modes.summer.temperature),
+            fan_mode: document.getElementById('summerFanMode').value,
+          },
+          winter: {
+            enabled: document.getElementById('winterEnabled').checked,
+            hvac_mode: document.getElementById('winterHvacMode').value,
+            temperature: numberValue('winterTemp', existing.modes.winter.temperature),
+            fan_mode: document.getElementById('winterFanMode').value,
+          },
+        },
+        automation: {
+          enabled: document.getElementById('automationEnabled').checked,
+          ac: {
+            auto_on: document.getElementById('acAutoOn').checked,
+            auto_off: document.getElementById('acAutoOff').checked,
+            on_delay_sec: numberValue('acOnDelay', existing.automation.ac.on_delay_sec),
+            off_delay_sec: numberValue('acOffDelay', existing.automation.ac.off_delay_sec),
+          },
+          light: {
+            enabled: document.getElementById('lightEnabled').checked,
+            auto_on: document.getElementById('lightAutoOn').checked,
+            auto_off: document.getElementById('lightAutoOff').checked,
+            arrival_preset: document.getElementById('arrivalPreset').value,
+            departure_preset: document.getElementById('departurePreset').value,
+          },
+          fresh_air: {
+            enabled: document.getElementById('freshEnabled').checked,
+            auto_on: document.getElementById('freshAutoOn').checked,
+            auto_off: document.getElementById('freshAutoOff').checked,
+            on_delay_sec: numberValue('freshOnDelay', existing.automation.fresh_air.on_delay_sec),
+            off_delay_sec: numberValue('freshOffDelay', existing.automation.fresh_air.off_delay_sec),
+            fan_mode: document.getElementById('freshMode').value,
+          },
+        },
+      };
+    }
+
+    async function saveCurrentRoom() {
+      try {
+        const roomConfig = collectCurrentRoomConfig();
+        if (!roomConfig) throw new Error('当前没有可保存的包厢配置');
+        const payload = { config: { rooms: { [roomConfig.room_id]: roomConfig } } };
+        await requestJson('/api/netcafe/panel/config/system', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        showMessage('包厢配置已保存', 'success');
+        await reloadAll(false);
+      } catch (error) {
+        showMessage(error.message || '保存失败', 'error');
+      }
+    }
+
+    async function selectRoom(roomId) {
+      state.currentRoomId = roomId;
+      renderRoomList();
+      renderEditor();
+    }
+
+    async function reloadAll(showToast = true) {
+      try {
+        const [overview, config, entities] = await Promise.all([
+          requestJson('/api/netcafe/panel/overview'),
+          requestJson('/api/netcafe/panel/config/system'),
+          requestJson('/api/netcafe/panel/entities'),
+        ]);
+        state.overview = overview;
+        state.config = config;
+        state.entities = entities;
+        if (!state.currentRoomId && roomList().length) {
+          state.currentRoomId = roomList()[0].room_id;
+        }
+        if (state.currentRoomId && !roomList().some((room) => room.room_id === state.currentRoomId)) {
+          state.currentRoomId = roomList().length ? roomList()[0].room_id : null;
+        }
+        renderRoomList();
+        renderEditor();
+        if (showToast) {
+          showMessage('配置数据已刷新', 'success');
+          window.setTimeout(() => showMessage(''), 1500);
+        }
+      } catch (error) {
+        showMessage(error.message || '读取配置失败', 'error');
+      }
+    }
+
+    reloadAll(false);</script></body></html>

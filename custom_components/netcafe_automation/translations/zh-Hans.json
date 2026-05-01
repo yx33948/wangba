@@ -1,32 +1,58 @@
 {
   "config": {
     "step": {
-      "download_template": {
-        "title": "下载 CSV 配置模板",
-        "description": "{instructions}",
+      "user": {
+        "title": "选择配置方式",
+        "description": "请选择如何添加设备。",
         "data": {
-          "action": "请选择"
+          "input_method": "配置方式"
         }
       },
-      "upload_csv": {
-        "title": "粘贴 CSV 配置内容",
-        "description": "{tip}",
+      "form": {
+        "title": "添加设备",
+        "description": "当前设备数：{device_count} | 包厢数：{room_count}\n\n{device_list}",
+        "data": {
+          "room_name": "包厢名称",
+          "ip_address": "IP 地址",
+          "action": "操作"
+        }
+      },
+      "csv": {
+        "title": "批量导入 CSV",
+        "description": "请粘贴包含 `ip_address` 和 `room_name` 两列的 CSV 内容。",
         "data": {
           "csv_content": "CSV 内容"
         }
       },
-      "confirm": {
-        "title": "确认配置",
-        "description": "检测到 {room_count} 个包间，是否启用自动化？",
+      "activate_license": {
+        "title": "激活卡密",
+        "description": "{status_hint}\n\n{tip}",
         "data": {
-          "enable_automation": "启用自动化"
+          "license_key": "卡密"
+        }
+      },
+      "weather": {
+        "title": "配置天气位置",
+        "description": "{tip}",
+        "data": {
+          "weather_domain": "天气服务器域名",
+          "weather_search": "城市或区县",
+          "weather_area_id": "天气地点"
         }
       }
     },
     "error": {
-      "no_csv_file": "未输入 CSV 内容，请粘贴数据",
-      "invalid_csv": "CSV 格式无效，请检查是否包含正确的标题行和数据",
-      "cannot_read_file": "无法解析 CSV 内容，请检查格式"
+      "no_csv_file": "未提供 CSV 内容",
+      "invalid_csv": "CSV 格式无效，请确认包含 ip_address 和 room_name 两列",
+      "cannot_read_file": "无法解析 CSV 内容",
+      "no_devices": "至少需要添加一个设备",
+      "room_name_required": "请输入包厢名称",
+      "ip_address_required": "请输入 IP 地址",
+      "invalid_ip": "IP 地址格式无效",
+      "weather_lookup_failed": "天气地点解析失败，请重新选择",
+      "weather_search_failed": "天气地点搜索失败，请稍后重试",
+      "weather_location_not_found": "未找到匹配的天气地点",
+      "weather_location_required": "请先搜索并选择一个天气地点"
     },
     "abort": {
       "already_configured": "该配置已存在"
@@ -35,34 +61,68 @@
   "options": {
     "step": {
       "init": {
-        "title": "网吧自动化选项",
-        "description": "管理网吧自动化配置",
+        "title": "网吧 IP 跟踪选项",
+        "description": "当前配置：{room_count} 个包厢，{device_count} 台设备\n\n请选择要执行的操作。",
         "data": {
-          "action": "选择操作"
+          "action": "操作"
+        }
+      },
+      "add_devices": {
+        "title": "添加或删除设备",
+        "description": "当前设备数：{device_count} | 包厢数：{room_count}\n\n{device_list}\n\n{tip}",
+        "data": {
+          "room_name": "包厢名称",
+          "ip_address": "IP 地址",
+          "action": "操作"
         }
       },
       "update_csv": {
         "title": "更新 CSV 配置",
-        "description": "粘贴新的 CSV 内容以更新配置",
+        "description": "请粘贴新的 CSV 内容以覆盖当前配置。",
         "data": {
           "csv_content": "CSV 内容"
+        }
+      },
+      "activate_license": {
+        "title": "管理卡密",
+        "description": "{status_hint}\n\n{tip}",
+        "data": {
+          "license_key": "新卡密",
+          "action": "操作"
+        }
+      },
+      "weather_settings": {
+        "title": "天气设置",
+        "description": "{tip}",
+        "data": {
+          "weather_domain": "天气服务器域名",
+          "weather_search": "城市或区县",
+          "weather_area_id": "天气地点"
         }
       }
     },
     "error": {
-      "no_csv_file": "未输入 CSV 内容",
+      "no_csv_file": "未提供 CSV 内容",
       "invalid_csv": "CSV 格式无效",
-      "cannot_read_file": "无法解析 CSV 内容"
+      "cannot_read_file": "无法解析 CSV 内容",
+      "no_devices": "至少需要添加一个设备",
+      "room_name_required": "请输入包厢名称",
+      "ip_address_required": "请输入 IP 地址",
+      "invalid_ip": "IP 地址格式无效",
+      "weather_lookup_failed": "天气地点解析失败，请重新选择",
+      "weather_search_failed": "天气地点搜索失败，请稍后重试",
+      "weather_location_not_found": "未找到匹配的天气地点",
+      "weather_location_required": "请先搜索并选择一个天气地点"
     }
   },
   "services": {
     "reload_from_csv": {
       "name": "重新加载 CSV 配置",
-      "description": "从 CSV 文件重新加载所有包间配置"
+      "description": "从 CSV 文件重新加载所有包厢配置。"
     },
     "export_csv": {
       "name": "导出 CSV 配置",
-      "description": "将当前配置导出为标准 CSV 文件到 www 目录",
+      "description": "将当前配置导出到 Home Assistant 的 www 目录。",
       "fields": {
         "filename": {
           "name": "文件名",
